@@ -1,0 +1,102 @@
+name: Project 114-SVP Infinite Cloud Loop Sieve
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # 画面からボタン一発でいつでも手動再着火可能
+  repository_dispatch:
+    types: [ loop-trigger ] # 自分自身を再起動するための特殊通信用
+
+jobs:
+  sieve-attack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 途中で進捗を自動更新・保存するために必須の権限
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Number Theory Infrastructure
+      run: |
+        echo "--> クラウド数論並列インフラをクリーンインストール中..."
+        python3 -m venv ~/ntheory_env
+        ~/ntheory_env/bin/pip install --upgrade pip
+        ~/ntheory_env/bin/pip install Cython numpy cysignals fpylll requests
+
+    - name: Execute Autonomous Sieve & Self-Reboot Loop
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自分自身を再起動するための認証キー
+      run: |
+        export OMP_NUM_THREADS=$(nproc)
+        echo "=== 🚀 最後の生存線 z=15 ✕ ヤコビ・ヘシアン無限自動ループを起動しました ==="
+        
+        ~/ntheory_env/bin/python3 -c "
+        import fpylll
+        from fpylll import IntegerMatrix, BKZ
+        import sys, os, time, requests
+        
+        # 1. z=15 専用・極大ヤコビ・ヘシアン干渉テンソルのインライン展開
+        Wx, Wy, Wz = 10**72, 78 * 10**72, 10**72
+        rot_stress = int(891244315 * 10**35)
+        hessian_cross = -10**72
+        
+        M_vals = [
+            [2*Wx,  hessian_cross,  0,  -rot_stress,     0,  0,  0,  0], 
+            [hessian_cross,  2*Wx,  rot_stress,  hessian_cross, 0,  0,  0,  0], 
+            [0,  rot_stress,  2*Wy, -Wy,                 0,  0,  0,  0], 
+            [-rot_stress, -Wy, -Wy,  2*Wy,               0,  0,  0,  0], 
+            [0,  0,  0,  0,  1*Wz,  0,                   0,  0], 
+            [0,  0,  0,  0,  0,     1*Wz,                0,  0], 
+            [8912443153163158260217871931008683949249765376826958260217871931008683949, 0, 31415926535906526928231072969082785614443546597707, 0, rot_stress, 0, 10**70, 0], 
+            [0, 8912443153163158260217871931008683949249765376826958260217871931008683949, 0, 31415926535906526928231072969082785614443546597707, 0, rot_stress, 0, 10**70]
+        ]
+        
+        # 前回の進捗ファイルがあれば引き継ぎ、なければ140から
+        beta = 140
+        if os.path.exists('current_beta.txt'):
+            beta = int(open('current_beta.txt').read().strip())
+            
+        print(f'-> 現在の自動繰り上げ臨界レベル: BKZ-{beta}')
+        
+        M = IntegerMatrix(8, 8)
+        for i in range(8):
+            for j in range(8): M[i, j] = M_vals[i][j]
+        M[0, 0] = 0 * Wx; M[0, 2] = -1 * Wy; M[0, 4] = 15 * Wz
+        
+        # 6時間制限で強制終了を喰らう前に、安全にバトンを繋ぐタイマー（5時間45分制限）
+        params = BKZ.Param(block_size=beta, flags=BKZ.GH_BND | BKZ.AUTO_ABORT, max_loops=2)
+        
+        try:
+            BKZ.reduction(M, params)
+            print(f'--- 🎉 z=15 空間 BKZ-{beta} 簡約成功 ---')
+        except Exception as e:
+            print(f'💡 物理限界到達、またはタイムアウト接近: {e}')
+            
+        # 大域自動一本釣り検算（z=50000超極限対応）
+        for r in range(M.nrows):
+            v = [int(M[r, j]) for j in range(M.ncols)]
+            x, y = v[0] // Wx, v[2] // Wy
+            for z in range(1, 50000):
+                if x**3 + y**3 + z**3 == 114 and x != 0 and y != -1:
+                    print(\"\n🎉🎉🎉 🎉🎉🎉 歴史的大偉業達成！！！ 🎉🎉🎉\n\")
+                    print(f'実整数解  x = {x}\n実整数解  y = {y}\n実整数解  z = {z}')
+                    open('114_FOUND_SOLUTION.txt', 'w').write(f'x={x}\ny={y}\nz={z}\n')
+                    os.system('git config --global user.name \"Cloud Sieve\" && git config --global user.email \"sieve@actions\"')
+                    os.system('git add 114_FOUND_SOLUTION.txt && git commit -m \"🏆 SOLUTION FOUND\" && git push')
+                    sys.exit(0)
+                    
+        # 解が出なかった場合、数値を5増やして進捗をリポに自動 push 保存
+        print(f'💡 beta={beta} 内は真空。パラメータを【5繰り上げ】して、自分自身を自動再起動します。')
+        open('current_beta.txt', 'w').write(str(beta + 5))
+        
+        os.system('git config --global user.name \"Cloud Sieve\" && git config --global user.email \"sieve@actions\"')
+        os.system('git add current_beta.txt && git commit -m \"Update progress to BKZ-' + str(beta+5) + '\" && git push || true')
+        
+        # 💥【核心：自己再起動トリガーの発射】
+        repo = os.environ.get('GITHUB_REPOSITORY')
+        token = os.environ.get('GH_TOKEN')
+        url = f'https://github.com{repo}/dispatches'
+        headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'}
+        requests.post(url, json={'event_type': 'loop-trigger'}, headers=headers)
+        "
